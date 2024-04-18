@@ -1,0 +1,113 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+from datetime import datetime
+
+"""
+Finds the biggest battles between 2 companies
+Visualizes a select war
+"""
+
+
+def intersection(lst1, lst2):
+    lst3 = [value for value in lst1 if value in lst2]
+    return lst3
+
+
+dataframe = pd.read_pickle('asserters_filtered.pkl')
+[print(col) for col in dataframe.columns]
+
+# Look for these company names
+companies = ['Cordis Corporation', 'Boston Scientific Corporation', 'Boston Scientific Scimed, Inc.']
+war1 = []
+
+for index, row in dataframe.iterrows():
+    i = intersection(row['i_aliases'], companies)
+    a = intersection([row['pa_aliases']], companies)
+    if i and a: # Infringer and asserter both have to be in companies
+        #war1.append(f"{i[0]} -> {a[0]}, {row['Filing Date']}")
+        war1.append([i[0], a[0], row['Filing Date']])
+
+# get data to format
+# company_1, company_2, attacks_by_1, attacks_by_2, sum, multiply
+# {(company_1, company_2): [attacks_by_1, attacks_by_2, sum(a1, a2), multiply(a1, a2), min(a1, a2)]}
+wars = {}  # ('', ''): []
+
+
+for index, row in dataframe.iterrows():
+    #print(f"{row['i_aliases']} | {row['pa_aliases']}")
+    pi = list(set(row['i_aliases']))
+    pa = [row['pa_aliases']]
+    for i in pi:
+        for a in pa:
+            if (i, a) in wars:
+                wars[(i, a)][0] += 1
+            elif (a, i) in wars:
+                wars[(a, i)][1] += 1
+            else:
+                wars[(i, a)] = [1, 0]
+
+results = []
+
+for key, value in wars.items():
+    a1 = value[0]
+    a2 = value[1]
+    results.append([key, a1+a2, a1*a2, min(a1, a2), a1, a2])
+
+r1 = sorted(results, key=lambda x: x[1], reverse=True)
+r2 = sorted(results, key=lambda x: x[2], reverse=True)
+r3 = sorted(results, key=lambda x: x[3], reverse=True)
+
+print()
+print(r1[:5])
+print(r2[:5])
+print(r3[:5])
+
+print()
+print("Biggest battles, sum")
+for r in r1[:5]:
+    print(f" ({r[0][0]} | {r[3]}) vs ({r[0][1]} | {r[4]})")
+print()
+print("Biggest battles, multiply")
+for r in r2[:5]:
+    print(f" ({r[0][0]} | {r[3]}) vs ({r[0][1]} | {r[4]})")
+print()
+print("Biggest battles, min")
+for r in r3[:5]:
+    print(f" ({r[0][0]} | {r[3]}) vs ({r[0][1]} | {r[4]})")
+
+print()
+print("Lawsuits")
+[print(i) for i in sorted(war1, key=lambda x: x[2])]
+
+events = [
+    ['blue', "o", i[2], "Boston scientific"] if i[0]=='Cordis Corporation' else ['red', "^", i[2], "Cordis"] for i in war1
+]  # change names here and on line 21 (companies = ...) if you want to view other cases
+
+print("Events: ", len(events))
+# Convert dates from string to datetime objects
+dates = [datetime.strptime(event[2], '%Y-%m-%d') for event in events]
+
+fig, ax = plt.subplots(figsize=(10, 3))
+legend_labels = {}
+
+# Plot each event on the timeline
+for event, date in zip(events, dates):
+    color, shape, _, label = event
+    if label not in legend_labels:  # Check if the label has already been used
+        ax.scatter(date, 1, c=color, s=100, marker=shape, label=label)
+        legend_labels[label] = True
+    else:
+        ax.scatter(date, 1, c=color, s=100, marker=shape)
+
+ax.yaxis.set_visible(False)  # Hide the y-axis
+ax.spines[['left', 'right', 'top']].set_visible(False)
+ax.xaxis.set_major_locator(mdates.YearLocator())
+ax.xaxis.set_minor_locator(mdates.MonthLocator())
+ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y'))
+plt.xticks(rotation=45)
+plt.title('Lawsuits, timeline')
+plt.legend(title="Lawsuit filed by")
+plt.tight_layout()
+plt.show()
+
