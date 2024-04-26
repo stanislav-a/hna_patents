@@ -1,0 +1,44 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+import networkx as nx
+
+# ie. do companies do either trolling or non-trolling but not both
+# If you just want the answer, it is Yes
+
+dataframe = pd.read_pickle('asserters_filtered.pkl')
+[print(col) for col in dataframe.columns]
+
+# company -> troll suing, non-troll suing
+full = {}
+
+for index, row in dataframe.iterrows():
+    a = row['pa_aliases']
+    if a not in full:
+        full[a] = [0, 0]
+    if row['Asserter Category'] == 8:
+        full[a][1] += 1
+    else:
+        full[a][0] += 1
+
+datapoints = []
+
+for company, values in full.items():
+    datapoints.append(values[1]/(values[0]+values[1]))
+
+plt.hist(datapoints)
+plt.title("Trolling fraction as plaintiff")
+plt.ylabel("Amount of companies")
+plt.xlabel("Fraction of category 8 lawsuits")
+plt.show()
+
+
+
+
+
+
+
+
+
+
+
+
