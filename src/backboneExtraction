@@ -1,0 +1,89 @@
+
+
+"""
+
+get the nodes with the
+    most combined edge weight
+    greatest degree
+
+then get the mst
+
+"""
+
+import pandas as pd
+import matplotlib.pyplot as plt
+import networkx as nx
+
+
+def show_components(G, amount, title_text=""):
+    connected_components = sorted([G.subgraph(c).copy() for c in nx.connected_components(G)], key=len, reverse=True)
+    for i in range(min(amount, len(connected_components))):
+        component = connected_components[i]
+        print(len(component))
+        mst = nx.minimum_spanning_tree(component)
+        pos = nx.kamada_kawai_layout(mst)
+        plt.figure(figsize=(12, 7))
+        plt.title(f"Component {1 + i}, nodes: {len(component)}{title_text}")
+        nx.draw(mst, with_labels=True, pos=pos, node_color='skyblue', node_size=40)
+        plt.show()
+
+
+dataframe = pd.read_pickle('asserters_filtered.pkl')
+[print(col) for col in dataframe.columns]
+
+# company -> troll suing, non-troll suing
+full = {}
+
+for index, row in dataframe.iterrows():
+    if row['Asserter Category'] in [1, 4, 5]:
+        a = row['pa_aliases']
+        for i in row['i_aliases']:
+            if (a, i) not in full:
+                if (i, a) not in full:
+                    full[(i, a)] = 1
+                else:
+                    full[(i, a)] += 1
+            else:
+                full[(a, i)] += 1
+
+# Let's use undirected graph, otherwise the network might be very disconnected
+G = nx.Graph()
+
+
+# Total weight = total lawsuits cutoff
+node_weights = {}
+
+for parties, weight in full.items():
+
+    if parties[0] not in node_weights:
+        node_weights[parties[0]] = weight
+    else:
+        node_weights[parties[0]] += weight
+
+    if parties[1] not in node_weights:
+        node_weights[parties[1]] = weight
+    else:
+        node_weights[parties[1]] += weight
+
+highest_weights = []
+tot = 250
+for node, tot_weight in node_weights.items():
+    if tot_weight > tot:
+        highest_weights.append(node)
+
+for parties, weight in full.items():
+    if parties[0] in highest_weights and parties[1] in highest_weights:
+        G.add_edge(parties[0], parties[1], weight=weight)
+
+show_components(G, 3, f", total lawsuits: {tot}, Category = [1, 4, 5]")
+
+
+# Edge weight cutoff
+G2 = nx.Graph()
+for parties, weight in full.items():
+    if weight > 22:
+        G2.add_edge(parties[0], parties[1], weight=weight)
+
+show_components(G2, 3, ", Edge weight cutoff: 22")   
+
+
