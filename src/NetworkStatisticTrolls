@@ -1,0 +1,140 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+import networkx as nx
+
+
+dataframe = pd.read_pickle('asserters_filtered.pkl')
+[print(col) for col in dataframe.columns]
+
+# (asserter, infringer) -> count
+non_trolls = [{} for _ in range(22)]
+full = [{} for _ in range(22)]
+trolls = [{} for _ in range(22)]
+other_NPE = [{} for _ in range(22)]
+
+for index, row in dataframe.iterrows():
+    a = row['pa_aliases']
+    year = int(row["Filing Date"][:4])
+    ind = year-2000
+    for i in row['i_aliases']:
+        # full
+        if (i, a) not in full[ind]:
+            full[ind][(i, a)] = 1
+        else:
+            full[ind][(i, a)] += 1
+
+        if row['Asserter Category'] == 8:
+            # non troll
+            if (i, a) not in non_trolls[ind]:
+                non_trolls[ind][(i, a)] = 1
+            else:
+                non_trolls[ind][(i, a)] += 1
+        else:
+            if row['Asserter Category'] in {1, 4, 5}:
+                # troll
+                if (i, a) not in trolls[ind]:
+                    trolls[ind][(i, a)] = 1
+                else:
+                    trolls[ind][(i, a)] += 1
+            else:
+                # Other NPE
+                if (i, a) not in other_NPE[ind]:
+                    other_NPE[ind][(i, a)] = 1
+                else:
+                    other_NPE[ind][(i, a)] += 1
+
+
+print(len(non_trolls))
+print(len(full))
+print(len(trolls))
+
+
+def create_network(dictionary: dict):
+    NW = nx.DiGraph()
+    for keys, values in dictionary.items():
+        NW.add_edge(keys[0], keys[1], weight=values)
+    return NW
+
+
+non_troll_NW_yearly = [create_network(non_trolls[i]) for i in range(22)]
+full_NW_yearly = [create_network(full[i]) for i in range(22)]
+troll_NW_yearly = [create_network(trolls[i]) for i in range(22)]
+other_NPE_NW_yearly = [create_network(other_NPE[i]) for i in range(22)]
+
+
+avg_clustering_full = [nx.average_clustering(i) for i in full_NW_yearly]
+avg_clustering_non_troll = [nx.average_clustering(i) for i in non_troll_NW_yearly]
+avg_clustering_troll = [nx.average_clustering(i) for i in troll_NW_yearly]
+avg_clustering_other_NPE = [nx.average_clustering(i) for i in other_NPE_NW_yearly]
+
+size_full = [i.number_of_nodes() for i in full_NW_yearly]
+size_non_troll = [i.number_of_nodes() for i in non_troll_NW_yearly]
+size_troll = [i.number_of_nodes() for i in troll_NW_yearly]
+size_other_NPE = [i.number_of_nodes() for i in other_NPE_NW_yearly]
+
+density_full = [nx.density(i) for i in full_NW_yearly]
+density_non_troll = [nx.density(i) for i in non_troll_NW_yearly]
+density_troll = [nx.density(i) for i in troll_NW_yearly]
+density_other_NPE = [nx.density(i) for i in other_NPE_NW_yearly]
+
+avg_deg_full = [sum([i[1] for i in NW.degree()])/len(NW.degree()) for NW in full_NW_yearly]
+avg_deg_non_troll = [sum([i[1] for i in NW.degree()])/len(NW.degree()) for NW in non_troll_NW_yearly]
+avg_deg_troll = [sum([i[1] for i in NW.degree()])/len(NW.degree()) for NW in troll_NW_yearly]
+avg_deg_other_NPE = [sum([i[1] for i in NW.degree()])/len(NW.degree()) for NW in other_NPE_NW_yearly]
+
+avg_weight_full = [sum([d["weight"] for (_, _, d) in NW.edges(data=True)])/len(NW.degree()) for NW in full_NW_yearly]
+avg_weight_non_troll = [sum([d["weight"] for (_, _, d) in NW.edges(data=True)])/len(NW.degree()) for NW in non_troll_NW_yearly]
+avg_weight_troll = [sum([d["weight"] for (_, _, d) in NW.edges(data=True)])/len(NW.degree()) for NW in troll_NW_yearly]
+avg_weight_other_NPE = [sum([d["weight"] for (_, _, d) in NW.edges(data=True)])/len(NW.degree()) for NW in other_NPE_NW_yearly]
+
+
+plt.plot([i+2000 for i in range(22)], avg_clustering_full, c='gray')
+plt.plot([i+2000 for i in range(22)], avg_clustering_non_troll, c='blue')
+plt.plot([i+2000 for i in range(22)], avg_clustering_troll, c='red')
+plt.plot([i+2000 for i in range(22)], avg_clustering_other_NPE, c='violet')
+plt.title("Average clustering")
+plt.xlabel("Year")
+plt.legend(["Full", "Non-troll", "Troll", "Other NPE"])
+plt.show()
+
+plt.plot([i+2000 for i in range(22)], size_full, c='gray')
+plt.plot([i+2000 for i in range(22)], size_non_troll, c='blue')
+plt.plot([i+2000 for i in range(22)], size_troll, c='red')
+plt.plot([i+2000 for i in range(22)], size_other_NPE, c='violet')
+plt.title("Number of nodes")
+plt.xlabel("Year")
+plt.legend(["Full", "Non-troll", "Troll", "Other NPE"])
+plt.show()
+
+plt.plot([i+2000 for i in range(22)], avg_deg_full, c='gray')
+plt.plot([i+2000 for i in range(22)], avg_deg_non_troll, c='blue')
+plt.plot([i+2000 for i in range(22)], avg_deg_troll, c='red')
+plt.plot([i+2000 for i in range(22)], avg_deg_other_NPE, c='violet')
+plt.title("Average Degree")
+plt.xlabel("Year")
+plt.legend(["Full", "Non-troll", "Troll", "Other NPE"])
+plt.show()
+
+plt.plot([i+2000 for i in range(22)], avg_weight_full, c='gray')
+plt.plot([i+2000 for i in range(22)], avg_weight_non_troll, c='blue')
+plt.plot([i+2000 for i in range(22)], avg_weight_troll, c='red')
+plt.plot([i+2000 for i in range(22)], avg_weight_other_NPE, c='violet')
+plt.title("Average Edge Weight")
+plt.xlabel("Year")
+plt.legend(["Full", "Non-troll", "Troll", "Other NPE"])
+plt.show()
+
+plt.plot([i+2000 for i in range(22)], density_full, c='gray')
+plt.plot([i+2000 for i in range(22)], density_non_troll, c='blue')
+plt.plot([i+2000 for i in range(22)], density_troll, c='red')
+plt.plot([i+2000 for i in range(22)], density_other_NPE, c='violet')
+plt.title("Edge Density")
+plt.xlabel("Year")
+plt.legend(["Full", "Non-troll", "Troll", "Other NPE"])
+plt.show()
+
+
+
+
+
+
